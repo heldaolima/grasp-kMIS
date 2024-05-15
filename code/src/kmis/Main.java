@@ -12,10 +12,13 @@ import kmis.localSearch.*;
 import kmis.structure.Instance;
 import kmis.structure.RandomManager;
 import kmis.structure.Result;
+import kmis.structure.Solution;
 
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.time.Instant;
 import java.util.*;
 
 public class Main {
@@ -65,86 +68,93 @@ public class Main {
 
     final static int seed=13;
     public static int iter=0;
+    public static int numberOfTests = 10;
+
+    private class Objectives {
+        public int best, worst, current;
+        public double average;
+
+        Objectives() {
+            best = 0;
+            worst = 0;
+            current = 0;
+            average = 0.0;
+        }
+
+        public void set(int objective, int iteration) {
+            current = objective;
+            average += objective;
+            if (iteration == 0) {
+                best = current;
+                worst = current;
+            } else {
+                if (current > best)
+                    best = current;
+                if (current < worst)
+                    worst = current;
+            }
+        }
+        
+    }
 
     public static void main(String[] args) {
         readData();
-        //AlgConstructive algConstructive=new AlgConstructive(numSolutions, graspGRConstructive);
-        //AlgIteratedGreedyBestSol algConstructive=new AlgIteratedGreedyBestSol(numSolutions, graspGRConstructive, localSearchEfficient);
+
         AlgConstructive algConstructive=new AlgConstructive(numSolutions, graspRGConstructive, tabuSearch);
-        //AlgIteratedGreedyBestSol algConstructive=new AlgIteratedGreedyBestSol(numSolutions, graspGRConstructive,localSearchEfficient);
-        //AlgConstructive algConstructive=new AlgConstructive(numSolutions, graspRGConstructive,localSearchEfficient);
-        //AlgIteratedGreedy algConstructive=new AlgIteratedGreedy(numSolutions, graspRGConstructive,localSearchEfficient);
-        //AlgIteratedGreedyBestSol algConstructive=new AlgIteratedGreedyBestSol(numSolutions, graspRGConstructive,tabuSearch);
 
         RandomManager.setSeed(seed);
         
-        for(int i=0;i<10;i++){
-            iter++;
-            if(multipleAlpha){
-                for (float a : alphas) {
-                    alpha=a;
-                    executeInstances(algConstructive);
-                }
-            } else if(multipleTenure){
-                for (float t : tenures) {
-                    tenure=t;
-                    if(multipleItersWithoutImprove){
-                        for(int iter: itersWithoutImprove){
-                            iterWithoutImprove=iter;
-                            executeInstances(algConstructive);
-                        }
-                        executeInstances(algConstructive);
-                    } else{
-                        executeInstances(algConstructive);
-                    }
-
-                }
-            } else{
-                if(multipleBeta){
-                    for (float b : betas) {
-                        beta=b;
-                        executeInstances(algConstructive);
-                    }
-                } else{
-                    executeInstances(algConstructive);
-                }
-            }
-        }
-
+        executeInstances(algConstructive);
     }
 
-    private static void executeInstances(IAlgorithm algConstructive){
-        List<Result> results = new ArrayList<>();
-        for (Instance instance:instances) {
-            Result result=algConstructive.execute(instance);
-            results.add(result);
-        }
-        printResults("./results/"+algConstructive.toString()+".csv", results);
-    }
-
-    private static void printResults(String path, List<Result> results) {
-        try (PrintWriter pw = new PrintWriter(path)) {
-            List<String> headers = new ArrayList<>(results.get(0).getKeys());
-            //pw.print("Instance");
-            int nElems = 0;
-            for (int i = 0; i < headers.size(); i++) {
-                String header = headers.get(i);
-                pw.print(header);
-                //pw.print(","+header);
-                if (i < headers.size()-1) pw.print(",");
-                nElems++;
-            }
+    private static void executeInstances(IAlgorithm algConstructive) {
+        String outPath = "./results/results_grasp.csv";
+        try (PrintWriter pw = new PrintWriter(outPath)) {
+            pw.write("input,best,worst,avg_obj,avg_time,avg_time_to_best");
             pw.println();
+        }
+        catch (IOException e) {
+            System.err.println(e);
+            return;
+        }
 
-            for (Result result : results) {
-                //pw.print(result.getInstanceName());
-                for (int i = 0; i < nElems; i++) {
-                    //pw.print(","+result.get(i));
-                    pw.print(result.get(i));
-                    if (i < nElems-1) pw.print(",");
+        long start;
+
+        for (Instance instance : instances) {
+            int best = 0, worst = 0, current = 0;
+            double average = 0.0;
+            double timeToBest = 0.0;
+
+            for (int i = 0; i < numberOfTests; i++) {
+                start = System.currentTimeMillis();
+                Solution solution = algConstructive.execute(instance, start);
+                current = solution.getObjectiveFunction();
+                average += current;
+                timeToBest += solution.getTimeFound();
+
+                if (i == 0) {
+                    best = current;
+                    worst = current;
+                } else {
+                    if (current > best)
+                        best = current;
+                    if (current < worst)
+                        worst = current;
                 }
-                pw.println();
             }
+            average /= numberOfTests;
+            timeToBest /= numberOfTests;
+            
+            printResults(outPath, instance.getName(), best, worst, average, timeToBest);
+        }
+
+        // printResults("./results/"+algConstructive.toString()+".csv", results);
+    }
+
+    private static void printResults(String path, String instance, int best, int worst, double avgObj, double timeToBest) {
+        try (PrintWriter pw = new PrintWriter(new FileWriter(path, true))) {
+            pw.write(instance + "," + best + "," + worst + "," + avgObj + "," + timeToBest);
+            pw.println();
         } catch (IOException e) {
             e.printStackTrace();
         }

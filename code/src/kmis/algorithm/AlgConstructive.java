@@ -1,5 +1,7 @@
 package kmis.algorithm;
 
+import java.time.Instant;
+
 import kmis.Main;
 import kmis.constructive.IConstructive;
 import kmis.localSearch.ILocalSearch;
@@ -29,21 +31,33 @@ public class AlgConstructive implements IAlgorithm {
     }
 
     @Override
-    public Result execute(Instance instance) {
-        Solution bestSolution=null;
-        int bestCardinality=0;
-        long totalTime=System.currentTimeMillis();
-        Result result=new Result(instance.getName());
-        float secs;
+    public Solution execute(Instance instance, long t1) {
+        Solution bestSolution = null;
+        int bestCardinality = 0;
+        long totalTime = System.currentTimeMillis(), t2 = 0;
+        Result result = new Result(instance.getName());
 
-        for(int i=1; i<=numSolutions;i++){
+        double elapsedTime = 0.0f;
+        float secs;
+        while (elapsedTime <= (double) instance.getNumElementsSol() / 10) {
             Solution sol = constructive.construct(instance);
-            if(useLocalSearch) sol=localSearch.execute(sol,instance);
-            int solCardinality=sol.getObjectiveFunction();
-            if(bestSolution==null || solCardinality>bestCardinality){
-                bestCardinality=solCardinality;
-                bestSolution=sol;
+
+            if (useLocalSearch) {
+                sol = localSearch.execute(sol, instance);
+                t2 = System.currentTimeMillis();
             }
+
+            int solCardinality = sol.getObjectiveFunction();
+
+            if (bestSolution == null || solCardinality > bestCardinality) {
+                bestCardinality = solCardinality;
+                bestSolution = sol;
+                elapsedTime = (t2 - t1) / 1000f;
+                bestSolution.setTimeFound(elapsedTime);
+            }
+            
+            t2 = System.currentTimeMillis();
+            elapsedTime = (t2 - t1) / 1000f;
 
             /*if (Main.de100en100 && i % 100 == 0 && i > 0) {
                 long currentTime = System.currentTimeMillis() - totalTime;
@@ -52,20 +66,24 @@ public class AlgConstructive implements IAlgorithm {
                 result.add("time_"+i,secs);
             }*/
         }
+
         totalTime = System.currentTimeMillis() - totalTime;
         secs = totalTime / 1000f;
 
-        if(Main.DEBUG){
-            System.out.print(instance.getName()+"\t");
-            System.out.println(bestSolution.getObjectiveFunction()+"\t"+secs);
-        } else{
+        if (Main.DEBUG) {
+            System.out.print(instance.getName() + "\t");
+            System.out.println(bestSolution.getObjectiveFunction() + "\t" + secs);
+        } else {
             System.out.println(bestSolution.getObjectiveFunction());
         }
 
-        result.add("OF"+Main.iter, bestSolution.getObjectiveFunction());
-        result.add("time"+Main.iter, secs);
+        return bestSolution;
 
-        return result;
+        // result.add("best", bestSolution.getObjectiveFunction());
+        // result.add("time"+Main.iter, secs);
+        
+
+        // return result;
     }
 
     public String toString() {

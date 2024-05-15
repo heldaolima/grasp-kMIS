@@ -11,6 +11,7 @@ public class Solution {
     private BitSet sol;
     private List<Integer> elementsSol;
     private Map<Integer,Integer> alternativeOF;
+    private double timeFound = 0.0;
 
     public Solution(Instance instance){
         this.instance=instance;
@@ -22,6 +23,14 @@ public class Solution {
 
     public Solution(Solution sol) {
         copy(sol);
+    }
+
+    public void setTimeFound(double time) {
+        timeFound = time;
+    }
+
+    public double getTimeFound() {
+        return timeFound;
     }
 
     public void printSol(){
